@@ -1,0 +1,19 @@
+{
+  "name": "saveyoursession",
+  "version": "0.1.0",
+  "description": "Agent-facing session discovery, sync, search, and restore across Codex, Claude Code, Grok Build, and DSH.",
+  "author": {
+    "name": "Local developer"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Saveyoursession",
+    "shortDescription": "Manage native sessions across four agent harnesses.",
+    "longDescription": "Agent-facing tools to discover, inspect, sync, search, and restore native Codex, Claude Code, Grok Build, and DSH sessions without converting them to a shared transcript format.",
+    "developerName": "Local developer",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "defaultPrompt": ["List my recent agent sessions", "Search across saved sessions", "Restore a session into its harness"],
+    "brandColor": "#2563EB"
+  }
+}

@@ -1,0 +1,5 @@
+# SaveYourSession DSH bundle patch.
+# The loader resolves this package name through the active DSH profile.
+- insert:
+    - id: saveyoursession-dsh
+      name: saveyoursession-dsh

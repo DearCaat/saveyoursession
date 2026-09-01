@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/sync_claude_session.py\" || python \"${CLAUDE_PLUGIN_ROOT}/hooks/sync_claude_session.py\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

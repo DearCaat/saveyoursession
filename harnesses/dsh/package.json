@@ -1,0 +1,15 @@
+{
+  "name": "saveyoursession-dsh",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness bundle entry for SaveYourSession native session management",
+  "type": "module",
+  "main": "lib/index.mjs",
+  "files": ["lib", "cordis.patch.yml", "README.md", "package.json"],
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": { "platform": "web" }
+  },
+  "engines": { "node": ">=18" },
+  "peerDependencies": { "@deepseek-ai/dsh-tools": ">=0.1.0-rc.6" },
+  "license": "MIT"
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "SaveYourSession"
+  short_description: "List, search, sync, and restore native agent sessions"
+  default_prompt: "Use SaveYourSession to inspect or manage native sessions across Codex, Claude Code, Grok Build, and DSH."
