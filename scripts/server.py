@@ -90,8 +90,6 @@ def _upload_hf(path, harness, session_id):
         return {"uploaded": False, "reason": str(exc)}
 
 def _read_token_file():
-    candidates = []
-    candidates.append(Path(__file__).resolve().parents[1] / "config" / "hf_token.txt")
     local_env = Path(__file__).resolve().parents[1] / "config" / "local.env"
     try:
         for line in local_env.read_text(encoding="utf-8").splitlines():
@@ -101,11 +99,7 @@ def _read_token_file():
     except OSError:
         pass
     configured = os.environ.get("HF_TOKEN_FILE")
-    if configured:
-        candidates.append(Path(configured))
-    # Windows path supplied for this installation; harmless on other hosts.
-    candidates.append(Path(r"C:\Users\tangwenhao\Downloads\token.txt"))
-    candidates.append(Path("/mnt/c/Users/tangwenhao/Downloads/token.txt"))
+    candidates = [Path(configured)] if configured else []
     for p in candidates:
         try:
             for line in p.read_text(encoding="utf-8").splitlines():
