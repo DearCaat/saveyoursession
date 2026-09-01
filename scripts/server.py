@@ -100,8 +100,10 @@ def _read_token_file():
     candidates.append(Path("/mnt/c/Users/tangwenhao/Downloads/token.txt"))
     for p in candidates:
         try:
-            value = p.read_text(encoding="utf-8").strip()
-            if value: return value
+            for line in p.read_text(encoding="utf-8").splitlines():
+                value = line.strip()
+                if value.startswith("hf_"):
+                    return value
         except OSError:
             continue
     return None
