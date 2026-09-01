@@ -1,108 +1,89 @@
 # saveyoursession
 
-Agent-facing Codex plugin for managing native sessions from four harnesses:
-Codex, Claude Code, Grok Build, and DeepSeek Harness (DSH).
+Agent-facing session backup and restore for Codex, Claude Code, Grok Build,
+and DeepSeek Harness (DSH). Each harness keeps its native session format; a
+small shared index enables cross-harness listing and search.
 
-Install this same directory into each harness. Native session files remain in
-their original format; the shared index only provides cross-harness listing and
-search. The bundled `config/hf_token.txt` is used for the private
-`Dearcat/agent_session` Dataset. The token is bundled in this private repository
-at `config/hf_token.txt` so an installed agent works immediately. Keep this
-repository private and rotate both tokens if it is ever exposed.
+The private repository bundles `config/hf_token.txt`, containing the HF token
+used for `Dearcat/agent_session`. `server.py` selects the `hf_` line; GitHub
+authentication uses the separate `ghp_` line. Keep this repository private.
 
-## Install
+## Prerequisites
 
-Codex currently installs plugins through a marketplace snapshot. If you already
-have a personal marketplace, place this repository at its
-`plugins/saveyoursession` path, refresh that marketplace, then run:
+- Python 3.10+
+- `pip install -r requirements.txt`
+- Clone this private repository, for example to
+  `D:\twh\workspace\save_your_session`
 
-```bash
-codex plugin add saveyoursession@personal
-```
-
-For development without repackaging a marketplace, copy or link
-`skills/saveyoursession` into the Codex skills directory. The skill calls the
-shared `scripts/manager.py` and does not use MCP.
-
-After installation in any harness, verify the shared manager first:
+Verify the shared core:
 
 ```powershell
 py .\scripts\manager.py list --limit 10
 py .\scripts\manager.py sync
 ```
 
-Claude Code:
+## Codex
+
+Codex installs plugins from a marketplace snapshot. Put this checkout at
+`plugins/saveyoursession` inside your personal marketplace, refresh it, then:
+
+```bash
+codex plugin add saveyoursession@personal
+```
+
+For local development, link `skills/saveyoursession` into the Codex skills
+directory. Start a new Codex session and ask it to use `saveyoursession`.
+
+## Claude Code
 
 ```powershell
+claude plugin validate D:\twh\workspace\save_your_session
 claude --plugin-dir D:\twh\workspace\save_your_session
 ```
 
-This loads the plugin for the Claude process. The `SessionEnd` hook then
-performs a Claude-only sync; run `py scripts\manager.py list` for the
-cross-harness view.
+For persistent installation, add this repository to a Claude marketplace,
+then run `claude plugin install saveyoursession@<marketplace>` and
+`claude plugin enable saveyoursession@<marketplace>`. The SessionEnd hook
+performs a Claude-only sync.
 
-Grok Build:
+## Grok Build
 
-```bash
+```powershell
 grok plugin validate D:\twh\workspace\save_your_session
 grok plugin install D:\twh\workspace\save_your_session --trust
+grok plugin list
 ```
 
-The install is persistent. Confirm with `grok plugin list`, then ask the agent
-to use the `saveyoursession` skill or run the bundled Grok entrypoint.
+Grok discovers `skills/saveyoursession/SKILL.md`; its wrapper defaults to
+`$GROK_HOME/sessions`.
 
-DeepSeek Harness:
+## DeepSeek Harness (DSH)
 
-```bash
+```powershell
 dsh plugin --profile web add D:\twh\workspace\save_your_session\harnesses\dsh
 dsh web
 ```
 
-The DSH bundle registers model tools `save_session_list`,
-`save_session_search`, `save_session_sync`, and `save_session_restore`.
+The bundle registers `save_session_list`, `save_session_search`,
+`save_session_sync`, and `save_session_restore`, plus `/save-session-*` aliases.
 
 ## Agent operations
 
 ```bash
 python scripts/manager.py list
+python scripts/manager.py list --harness codex
 python scripts/manager.py search "keyword"
 python scripts/manager.py sync
+python scripts/manager.py status <harness> <session-id>
 python scripts/manager.py restore <harness> <session-id>
 ```
 
-On Windows, register daily sync with:
+The first `sync` creates the archive/index and uploads changed native files to
+the private HF Dataset. Register a daily Windows sync with:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\install_windows_schedule.ps1
 ```
 
-The plugin provides a cross-harness index while retaining each harness's raw
-session files independently. It archives locally first, then mirrors new files
-to the configured Hugging Face Dataset. The local archive remains usable
-offline.
-
-Agent-facing operations exposed through each harness's native skill/command/tool entry:
-
-- `list_sessions`
-- `search_sessions`
-- `session_status`
-- `sync_session`
-- `sync_all`
-- `restore_session`
-
-This plugin is intended to be enabled and called by an agent, not operated as a
-human-facing command-line UI.
-
-## Hugging Face sync
-
-Set `HF_DATASET_REPO=Dearcat/agent_session`. The plugin reads the token at
-runtime from `HF_TOKEN_FILE`; if omitted, it probes the Windows path
-`C:\Users\tangwenhao\Downloads\token.txt` (and its WSL mount). The token is
-never written to the archive/index or printed. `HF_TOKEN` may be used instead
-of a file when the harness provides secrets through its environment.
-
-On Windows, register a daily scan with:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\install_windows_schedule.ps1
-```
+Overrides: `SAVEYOURSESSION_ROOT`, `HF_DATASET_REPO`, `HF_TOKEN_FILE`,
+`CODEX_HOME`, `CLAUDE_HOME`, `GROK_BUILD_HOME`, and `DSH_HOME`.
