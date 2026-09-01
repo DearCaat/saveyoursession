@@ -7,6 +7,7 @@ offline Hugging Face endpoint.  The local manager remains available for a
 later scheduled retry.
 """
 import os
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -27,13 +28,21 @@ def main() -> int:
             pass
     if not enabled:
         return 0
+    session_id = os.environ.get("CLAUDE_CODE_SESSION_ID")
+    try:
+        payload = json.load(sys.stdin)
+        session_id = session_id or payload.get("session_id") or payload.get("sessionId") or payload.get("id")
+    except (json.JSONDecodeError, OSError):
+        pass
+    if not session_id:
+        return 0
     manager = plugin_root / "scripts" / "manager.py"
     if not manager.exists():
         return 0
     timeout = int(os.environ.get("SAVEYOURSESSION_HOOK_TIMEOUT", "25"))
     try:
         result = subprocess.run(
-            [sys.executable, str(manager), "sync", "--harness", "claude"],
+            [sys.executable, str(manager), "sync", "--harness", "claude", "--session-id", str(session_id)],
             cwd=str(plugin_root),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,

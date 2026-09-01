@@ -34,9 +34,10 @@ Set `SAVEYOURSESSION_ROOT` to choose the local archive/index directory. The
 adapter roots can be overridden with `CODEX_HOME`, `CLAUDE_HOME`,
 `GROK_BUILD_HOME`, and `DSH_HOME`.
 
-For Hugging Face sync, set `HF_DATASET_REPO=Dearcat/agent_session`. Provide
-`HF_TOKEN_FILE` for the token file (the configured Windows Downloads path is
-probed by default). Never expose the token in tool output or session content.
+For Hugging Face sync, set `HF_BUCKET_URI=hf://buckets/Dearcat/agent-session`
+and provide `HF_TOKEN` (or `HF_TOKEN_FILE`). The bucket backend uses `hf sync`
+and Xet remote deduplication; `HF_DATASET_REPO` remains only as a legacy
+fallback. Never expose the token in tool output or session content.
 
 ## Grok Build adapter
 

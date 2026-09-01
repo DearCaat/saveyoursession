@@ -76,12 +76,12 @@ Each harness configures its own local credentials. The public repository contain
 Create `config/local.env` in the plugin cache directory:
 
 ```env
-HF_DATASET_REPO=Dearcat/agent_session
+HF_BUCKET_URI=hf://buckets/Dearcat/agent-session
 HF_TOKEN=hf_...
 SAVEYOURSESSION_HOOK_ENABLED=true
 ```
 
-You may also use the `HF_DATASET_REPO`, `HF_TOKEN`, or `HF_TOKEN_FILE` environment variables.
+You may also use `HF_BUCKET_URI`, `HF_TOKEN`, or `HF_TOKEN_FILE`. `HF_BUCKET_URI` defaults to `hf://buckets/Dearcat/agent-session`.
 Set `SAVEYOURSESSION_HOOK_ENABLED=true` to enable automatic Claude `SessionEnd` sync; it is disabled by default.
 
 Install dependencies before first use:
@@ -92,7 +92,7 @@ python -m pip install -r requirements.txt
 
 ## How it works
 
-Each harness skill, hook, or bundle calls `scripts/manager.py`. Native files are copied to `archive/<harness>/<session-id>/`; `index.json` stores paths, timestamps, and hashes. Sync is idempotent and uploads only changed files. The first sync creates the local archive and uploads it to the HF Dataset.
+Each harness skill, hook, or bundle calls `scripts/manager.py`. Native files are copied to `archive/<harness>/<session-id>/`; `index.json` stores paths, timestamps, and hashes. Sync is idempotent and compares hashes with both the local archive and the HF remote. For append-only JSONL sessions, the first sync uploads the complete file and later syncs upload only new chunks; a non-append rewrite falls back to a complete upload.
 
 ## Agent commands
 

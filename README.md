@@ -76,12 +76,12 @@ dsh web
 在插件缓存目录中创建 `config/local.env`：
 
 ```env
-HF_DATASET_REPO=Dearcat/agent_session
+HF_BUCKET_URI=hf://buckets/Dearcat/agent-session
 HF_TOKEN=hf_...
 SAVEYOURSESSION_HOOK_ENABLED=true
 ```
 
-也可以使用环境变量 `HF_DATASET_REPO`、`HF_TOKEN` 或 `HF_TOKEN_FILE`。
+也可以使用环境变量 `HF_BUCKET_URI`、`HF_TOKEN` 或 `HF_TOKEN_FILE`。`HF_BUCKET_URI` 默认是 `hf://buckets/Dearcat/agent-session`。
 将 `SAVEYOURSESSION_HOOK_ENABLED=true` 写入 `config/local.env` 后，Claude 的 `SessionEnd` hook 才会自动同步；默认关闭。
 
 首次使用前安装依赖：
@@ -94,7 +94,7 @@ python -m pip install -r requirements.txt
 
 各 harness 的 skill、hook 或 bundle 调用 `scripts/manager.py`。原生会话文件复制到 `archive/<harness>/<session-id>/`，`index.json` 记录路径、时间和 hash。
 
-同步是幂等的，只上传变化文件。首次同步会创建本地归档并上传到 HF Dataset。
+同步是幂等的，会同时比较本地归档和 HF 远端 hash；只有远端不存在或内容变化时才上传。对追加式 JSONL 会话，首次同步上传完整文件，后续只上传新增 chunk；非追加修改才重新上传完整文件。
 
 ## Agent 命令
 

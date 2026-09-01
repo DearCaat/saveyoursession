@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Dependency-free MCP server for agent-facing native session management."""
-import json, os, sys, hashlib, shutil, tarfile, tempfile
+import json, os, sys, hashlib, shutil, tarfile, tempfile, subprocess
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -66,23 +66,62 @@ def sync(harness=None, session_id=None):
         p = Path(item["path"]); raw = p.read_bytes(); digest = hashlib.sha256(raw).hexdigest()
         dest = ARCHIVE / item["harness"] / item["session_id"] / p.name
         dest.parent.mkdir(parents=True, exist_ok=True)
-        if not dest.exists() or hashlib.sha256(dest.read_bytes()).hexdigest() != digest:
+        previous = dest.read_bytes() if dest.exists() else b""
+        if not dest.exists() or hashlib.sha256(previous).hexdigest() != digest:
             shutil.copy2(p, dest); count += 1
-            _upload_hf(dest, item["harness"], item["session_id"])
-        item.update({"remote_path": str(dest), "content_hash": digest, "synced_at": datetime.now(timezone.utc).isoformat()})
+            _upload_hf(dest, item["harness"], item["session_id"], previous)
+        item.update({"remote_path": str(dest), "content_hash": digest, "size": len(raw), "synced_at": datetime.now(timezone.utc).isoformat()})
         db["sessions"][f'{item["harness"]}:{item["session_id"]}'] = item
     _save(db); return {"synced_files": count, "sessions": len(db["sessions"]), "archive": str(ARCHIVE)}
 
-def _upload_hf(path, harness, session_id):
+def _upload_hf(path, harness, session_id, previous=b""):
     """Optionally mirror a newly archived file to an HF Dataset repository."""
+    bucket = os.environ.get("HF_BUCKET_URI", "hf://buckets/Dearcat/agent-session")
     repo = os.environ.get("HF_DATASET_REPO", "Dearcat/agent_session")
     token = os.environ.get("HF_TOKEN") or _read_token_file()
     if not repo or not token:
         return {"uploaded": False, "reason": "HF_DATASET_REPO/HF_TOKEN not configured"}
+    if bucket:
+        try:
+            with tempfile.TemporaryDirectory(prefix="saveyoursession-hf-") as tmp:
+                staged = Path(tmp) / path.name
+                shutil.copy2(path, staged)
+                target = f"{bucket.rstrip('/')}/{harness}/{session_id}"
+                env = os.environ.copy(); env["HF_TOKEN"] = token
+                result = subprocess.run(["hf", "sync", tmp, target, "--format", "agent"], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=120, check=False)
+                if result.returncode == 0:
+                    text = result.stdout + result.stderr
+                    skipped = "Uploads: 0" in text and "Skips:" in text
+                    return {"uploaded": not skipped, "skipped": skipped, "backend": "hf-storage-bucket", "target": target}
+                return {"uploaded": False, "reason": result.stderr.strip() or result.stdout.strip(), "backend": "hf-storage-bucket"}
+        except (OSError, subprocess.SubprocessError) as exc:
+            return {"uploaded": False, "reason": str(exc), "backend": "hf-storage-bucket"}
     try:
         from huggingface_hub import HfApi
-        HfApi(token=token).upload_file(path_or_fileobj=str(path),
-            path_in_repo=f"{harness}/{session_id}/{path.name}",
+        remote_path = f"{harness}/{session_id}/{path.name}"
+        raw = path.read_bytes()
+        upload_path = path
+        base_infos = HfApi(token=token).get_paths_info(repo_id=repo, paths=[remote_path], repo_type="dataset")
+        if previous and base_infos and raw.startswith(previous) and len(raw) > len(previous):
+            # JSONL sessions are append-only in normal operation. Upload only
+            # the new bytes; the original file remains the base segment.
+            start, end = len(previous), len(raw)
+            delta = path.with_name(path.name + f".append-{start}-{end}.jsonl")
+            delta.write_bytes(raw[start:])
+            upload_path = delta
+            remote_path = f"{harness}/{session_id}/{delta.name}"
+            raw = raw[start:]
+        infos = HfApi(token=token).get_paths_info(repo_id=repo, paths=[remote_path], repo_type="dataset")
+        if infos:
+            info = infos[0]
+            remote_sha = getattr(getattr(info, "lfs", None), "sha256", None)
+            if remote_sha == hashlib.sha256(raw).hexdigest():
+                return {"uploaded": False, "skipped": True, "reason": "remote content unchanged"}
+            blob_sha = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
+            if getattr(info, "blob_id", None) == blob_sha:
+                return {"uploaded": False, "skipped": True, "reason": "remote content unchanged"}
+        HfApi(token=token).upload_file(path_or_fileobj=str(upload_path),
+            path_in_repo=remote_path,
             repo_id=repo, repo_type="dataset", commit_message="saveyoursession sync")
         return {"uploaded": True}
     except Exception as exc:
