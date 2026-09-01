@@ -6,18 +6,32 @@ Codex, Claude Code, Grok Build, and DeepSeek Harness (DSH).
 Install this same directory into each harness. Native session files remain in
 their original format; the shared index only provides cross-harness listing and
 search. The bundled `config/hf_token.txt` is used for the private
-`Dearcat/agent_session` Dataset and is excluded from Git commits.
+`Dearcat/agent_session` Dataset. The token is bundled in this private repository
+at `config/hf_token.txt` so an installed agent works immediately. Keep this
+repository private and rotate both tokens if it is ever exposed.
 
 ## Install
 
-Codex: add this directory as a local plugin and enable `saveyoursession`; the
-skill is `skills/saveyoursession/SKILL.md`.
+Codex: install the repository's plugin directory into your configured local
+marketplace, then enable `saveyoursession`. The skill is
+`skills/saveyoursession/SKILL.md`; it calls `scripts/manager.py`.
+
+After installation in any harness, verify the shared manager first:
+
+```powershell
+py .\scripts\manager.py list --limit 10
+py .\scripts\manager.py sync
+```
 
 Claude Code:
 
 ```powershell
 claude --plugin-dir D:\twh\workspace\save_your_session
 ```
+
+This loads the plugin for the Claude process. The `SessionEnd` hook then
+performs a Claude-only sync; run `py scripts\manager.py list` for the
+cross-harness view.
 
 Grok Build:
 
@@ -26,12 +40,18 @@ grok plugin validate D:\twh\workspace\save_your_session
 grok plugin install D:\twh\workspace\save_your_session --trust
 ```
 
+The install is persistent. Confirm with `grok plugin list`, then ask the agent
+to use the `saveyoursession` skill or run the bundled Grok entrypoint.
+
 DeepSeek Harness:
 
 ```bash
 dsh plugin --profile web add D:\twh\workspace\save_your_session\harnesses\dsh
 dsh web
 ```
+
+The DSH bundle registers model tools `save_session_list`,
+`save_session_search`, `save_session_sync`, and `save_session_restore`.
 
 ## Agent operations
 
