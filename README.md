@@ -78,9 +78,11 @@ dsh web
 ```env
 HF_DATASET_REPO=Dearcat/agent_session
 HF_TOKEN=hf_...
+SAVEYOURSESSION_HOOK_ENABLED=true
 ```
 
 也可以使用环境变量 `HF_DATASET_REPO`、`HF_TOKEN` 或 `HF_TOKEN_FILE`。
+将 `SAVEYOURSESSION_HOOK_ENABLED=true` 写入 `config/local.env` 后，Claude 的 `SessionEnd` hook 才会自动同步；默认关闭。
 
 首次使用前安装依赖：
 

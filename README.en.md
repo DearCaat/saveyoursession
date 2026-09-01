@@ -78,9 +78,11 @@ Create `config/local.env` in the plugin cache directory:
 ```env
 HF_DATASET_REPO=Dearcat/agent_session
 HF_TOKEN=hf_...
+SAVEYOURSESSION_HOOK_ENABLED=true
 ```
 
 You may also use the `HF_DATASET_REPO`, `HF_TOKEN`, or `HF_TOKEN_FILE` environment variables.
+Set `SAVEYOURSESSION_HOOK_ENABLED=true` to enable automatic Claude `SessionEnd` sync; it is disabled by default.
 
 Install dependencies before first use:
 
