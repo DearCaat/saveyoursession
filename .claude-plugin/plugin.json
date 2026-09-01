@@ -1,6 +1,6 @@
 {
   "name": "saveyoursession",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Agent-facing native session management for Codex, Claude Code, Grok Build, and DeepSeek Harness.",
   "author": {
     "name": "Local developer"

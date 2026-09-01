@@ -1,6 +1,6 @@
 {
   "name": "saveyoursession-dsh",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "DeepSeek Harness bundle entry for SaveYourSession native session management",
   "type": "module",
   "main": "lib/index.mjs",
