@@ -12,9 +12,17 @@ repository private and rotate both tokens if it is ever exposed.
 
 ## Install
 
-Codex: install the repository's plugin directory into your configured local
-marketplace, then enable `saveyoursession`. The skill is
-`skills/saveyoursession/SKILL.md`; it calls `scripts/manager.py`.
+Codex currently installs plugins through a marketplace snapshot. If you already
+have a personal marketplace, place this repository at its
+`plugins/saveyoursession` path, refresh that marketplace, then run:
+
+```bash
+codex plugin add saveyoursession@personal
+```
+
+For development without repackaging a marketplace, copy or link
+`skills/saveyoursession` into the Codex skills directory. The skill calls the
+shared `scripts/manager.py` and does not use MCP.
 
 After installation in any harness, verify the shared manager first:
 
