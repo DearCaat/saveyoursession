@@ -1,3 +1,5 @@
 archive/
 index.json
 __pycache__/
+config/local.env
+config/hf_token.txt

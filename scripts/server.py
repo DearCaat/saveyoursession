@@ -92,6 +92,14 @@ def _upload_hf(path, harness, session_id):
 def _read_token_file():
     candidates = []
     candidates.append(Path(__file__).resolve().parents[1] / "config" / "hf_token.txt")
+    local_env = Path(__file__).resolve().parents[1] / "config" / "local.env"
+    try:
+        for line in local_env.read_text(encoding="utf-8").splitlines():
+            if line.strip().startswith("HF_TOKEN="):
+                value = line.split("=", 1)[1].strip().strip('"\'')
+                if value: return value
+    except OSError:
+        pass
     configured = os.environ.get("HF_TOKEN_FILE")
     if configured:
         candidates.append(Path(configured))

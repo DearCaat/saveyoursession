@@ -4,16 +4,17 @@ Agent-facing session backup and restore for Codex, Claude Code, Grok Build,
 and DeepSeek Harness (DSH). Each harness keeps its native session format; a
 small shared index enables cross-harness listing and search.
 
-The private repository bundles `config/hf_token.txt`, containing the HF token
-used for `Dearcat/agent_session`. `server.py` selects the `hf_` line; GitHub
-authentication uses the separate `ghp_` line. Keep this repository private.
+This public repository contains no credentials. Copy
+`config/local.env.example` to `config/local.env` and fill in your own HF token.
+The local file is ignored by Git.
 
 ## Prerequisites
 
 - Python 3.10+
 - `pip install -r requirements.txt`
-- Clone this private repository, for example to
+- Clone this public repository, for example to
   `D:\twh\workspace\save_your_session`
+- `copy config\local.env.example config\local.env` and set `HF_TOKEN`
 
 Verify the shared core:
 
@@ -79,11 +80,11 @@ python scripts/manager.py restore <harness> <session-id>
 ```
 
 The first `sync` creates the archive/index and uploads changed native files to
-the private HF Dataset. Register a daily Windows sync with:
+the HF Dataset. Register a daily Windows sync with:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\install_windows_schedule.ps1
 ```
 
-Overrides: `SAVEYOURSESSION_ROOT`, `HF_DATASET_REPO`, `HF_TOKEN_FILE`,
+Overrides: `SAVEYOURSESSION_ROOT`, `HF_DATASET_REPO`, `HF_TOKEN`, `HF_TOKEN_FILE`,
 `CODEX_HOME`, `CLAUDE_HOME`, `GROK_BUILD_HOME`, and `DSH_HOME`.
