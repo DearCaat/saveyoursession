@@ -115,6 +115,14 @@ python scripts/manager.py restore codex <session-id> --target-root <directory>
 
 ## Automatic sync
 
+Codex and Claude Code use the plugin `SessionEnd` hook. Enable it by adding this to each plugin cache's `config/local.env`:
+
+```env
+SAVEYOURSESSION_HOOK_ENABLED=true
+```
+
+Grok Build and DSH expose their hook entry through their respective bundles; the exact event name depends on the harness version. Enable the bundle's session-end hook in the harness after installation.
+
 Claude's `SessionEnd` hook syncs automatically. Install the Windows daily task:
 
 ```powershell

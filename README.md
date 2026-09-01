@@ -117,6 +117,14 @@ python scripts/manager.py restore codex <session-id> --target-root <目录>
 
 ## 自动同步
 
+Codex 和 Claude Code 都使用插件的 `SessionEnd` hook。将下面配置写入各自插件缓存的 `config/local.env` 后启用：
+
+```env
+SAVEYOURSESSION_HOOK_ENABLED=true
+```
+
+Grok Build 和 DSH 的 hook 入口随各自 bundle 提供；具体事件名取决于 harness 版本。安装后在对应 harness 中启用该 bundle 的 session-end hook。
+
 Claude 的 `SessionEnd` hook 会自动同步。安装 Windows 每日任务：
 
 ```powershell
