@@ -1,0 +1,14 @@
+{
+  "name": "saveyoursession",
+  "owner": {
+    "name": "DearCaat"
+  },
+  "description": "Agent session backup, cross-harness search, HF Dataset sync, and native restore.",
+  "plugins": [
+    {
+      "name": "saveyoursession",
+      "source": "./",
+      "description": "Manage native sessions for Codex, Claude Code, Grok Build, and DSH."
+    }
+  ]
+}

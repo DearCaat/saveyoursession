@@ -1,0 +1,20 @@
+{
+  "name": "saveyoursession",
+  "interface": {
+    "displayName": "saveyoursession"
+  },
+  "plugins": [
+    {
+      "name": "saveyoursession",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

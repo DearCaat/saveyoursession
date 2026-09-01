@@ -23,45 +23,41 @@ py .\scripts\manager.py list --limit 10
 py .\scripts\manager.py sync
 ```
 
-## Codex
+## Codex (直接从 GitHub 安装)
 
-Codex installs plugins from a marketplace snapshot. Put this checkout at
-`plugins/saveyoursession` inside your personal marketplace, refresh it, then:
+不需要手动 clone。Codex 会把 GitHub 仓库作为 marketplace 源并缓存插件：
 
 ```bash
-codex plugin add saveyoursession@personal
+codex plugin marketplace add DearCaat/saveyoursession --ref main
+codex plugin add saveyoursession@saveyoursession
 ```
 
-For local development, link `skills/saveyoursession` into the Codex skills
-directory. Start a new Codex session and ask it to use `saveyoursession`.
+安装后重启 Codex；技能会自动加载。
 
-## Claude Code
+## Claude Code (直接从 GitHub 安装)
 
 ```powershell
-claude plugin validate D:\twh\workspace\save_your_session
-claude --plugin-dir D:\twh\workspace\save_your_session
+claude plugin marketplace add DearCaat/saveyoursession
+claude plugin install saveyoursession@saveyoursession
+claude plugin enable saveyoursession@saveyoursession
 ```
 
-For persistent installation, add this repository to a Claude marketplace,
-then run `claude plugin install saveyoursession@<marketplace>` and
-`claude plugin enable saveyoursession@<marketplace>`. The SessionEnd hook
-performs a Claude-only sync.
+重启 Claude Code 后生效；SessionEnd hook 会执行 Claude 会话同步。
 
-## Grok Build
+## Grok Build (GitHub 源安装)
 
 ```powershell
-grok plugin validate D:\twh\workspace\save_your_session
-grok plugin install D:\twh\workspace\save_your_session --trust
+grok plugin install https://github.com/DearCaat/saveyoursession.git --trust
 grok plugin list
 ```
 
 Grok discovers `skills/saveyoursession/SKILL.md`; its wrapper defaults to
 `$GROK_HOME/sessions`.
 
-## DeepSeek Harness (DSH)
+## DeepSeek Harness (DSH，GitHub 源安装)
 
 ```powershell
-dsh plugin --profile web add D:\twh\workspace\save_your_session\harnesses\dsh
+dsh plugin --profile web add https://github.com/DearCaat/saveyoursession.git//harnesses/dsh
 dsh web
 ```
 
