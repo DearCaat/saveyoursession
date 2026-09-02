@@ -1,6 +1,6 @@
 {
   "name": "saveyoursession",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Agent-facing session discovery, sync, search, and restore across Codex, Claude Code, Grok Build, and DSH.",
   "author": {
     "name": "Local developer"

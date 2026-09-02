@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Best-effort Codex SessionEnd hook for saveyoursession."""
+"""Best-effort Codex SessionEnd hook for saveyoursession.
+
+Codex caps SessionEnd hooks at three seconds.  Keep this subprocess below that
+budget: a later scheduled full sync is the reliable retry path.
+"""
 import os
 import json
 import subprocess
@@ -33,7 +37,11 @@ def main() -> int:
     if not manager.exists():
         return 0
     try:
-        subprocess.run([sys.executable, str(manager), "sync", "--harness", "codex", "--session-id", str(session_id)], cwd=str(plugin_root), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=int(os.environ.get("SAVEYOURSESSION_HOOK_TIMEOUT", "25")), check=False)
+        requested_timeout = int(os.environ.get("SAVEYOURSESSION_HOOK_TIMEOUT", "2"))
+        # Leave a little headroom for the hook runner itself.  An override
+        # must not make Codex emit its three-second timeout warning.
+        timeout = min(max(requested_timeout, 1), 2)
+        subprocess.run([sys.executable, str(manager), "sync", "--harness", "codex", "--session-id", str(session_id)], cwd=str(plugin_root), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=timeout, check=False)
     except (OSError, subprocess.SubprocessError, ValueError):
         pass
     return 0

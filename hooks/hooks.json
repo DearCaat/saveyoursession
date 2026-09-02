@@ -6,13 +6,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -n \"$CLAUDE_PLUGIN_ROOT\" ]; then python3 \"$CLAUDE_PLUGIN_ROOT/hooks/sync_claude_session.py\" || python \"$CLAUDE_PLUGIN_ROOT/hooks/sync_claude_session.py\"; fi",
-            "timeout": 30
+            "command": "hook_root=\"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-}}\"; if [ -n \"$hook_root\" ] && command -v python3 >/dev/null 2>&1; then python3 \"$hook_root/hooks/sync_claude_session.py\" || true; fi",
+            "timeout": 30,
+            "async": true
           },
           {
             "type": "command",
-            "command": "if [ -n \"$PLUGIN_ROOT\" ]; then python3 \"$PLUGIN_ROOT/hooks/sync_codex_session.py\" || python \"$PLUGIN_ROOT/hooks/sync_codex_session.py\"; fi",
-            "timeout": 30
+            "command": "hook_root=\"${PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}\"; if [ -n \"$hook_root\" ] && command -v python3 >/dev/null 2>&1; then python3 \"$hook_root/hooks/sync_codex_session.py\" || true; fi",
+            "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "hook_root=\"${GROK_PLUGIN_ROOT:-${PLUGIN_ROOT:-}}\"; if [ -n \"$hook_root\" ] && command -v python3 >/dev/null 2>&1; then python3 \"$hook_root/hooks/sync_grok_session.py\" || true; fi",
+            "timeout": 8
           }
         ]
       }

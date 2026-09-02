@@ -17,7 +17,7 @@ def main():
     if a.command == "list": out = server.discover(a.harness)[:a.limit]
     elif a.command == "search": out = server.search(a.query)
     elif a.command == "sync": out = server.sync(a.harness, a.session_id)
-    elif a.command == "status": out = server._load().get("sessions", {}).get(f"{a.harness}:{a.session_id}", {"found": False})
+    elif a.command == "status": out = server.session_status(a.harness, a.session_id)
     else: out = server.restore(a.harness, a.session_id, a.target_root)
     print(json.dumps(out, ensure_ascii=False, indent=2))
 if __name__ == "__main__": main()

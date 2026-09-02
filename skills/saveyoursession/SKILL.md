@@ -1,6 +1,6 @@
 ---
 name: saveyoursession
-description: "Manage native sessions across Codex, Claude Code, Grok Build, and DSH: list or search sessions across harnesses, archive them to Hugging Face, and restore a session into its matching harness. Use when an agent needs session continuity, backup, or cross-harness session lookup; do not convert transcripts between harness formats."
+description: "Manage native sessions across Codex, Claude Code, Grok Build, and DSH: list or search sessions across harnesses, sync their native files to Hugging Face, and restore a session into its matching harness. Use when an agent needs session continuity, backup, or cross-harness session lookup; do not convert transcripts between harness formats."
 ---
 
 # SaveYourSession
@@ -20,7 +20,7 @@ Code plugin root; use the first one that is defined.
   for a scheduled/full scan, or add
   `--harness <name>` and `--session-id <id>` for one harness/session.
 - Use `python "${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/manager.py" search <query>`
-  to search the shared index and archived local content.
+  to search the shared index and any native content still present locally.
 - Before restoring, run
   `python "${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/manager.py" status <harness> <id>`;
   restore only into the matching harness unless the user explicitly supplies a
@@ -30,8 +30,10 @@ Code plugin root; use the first one that is defined.
 
 ## Config
 
-Set `SAVEYOURSESSION_ROOT` to choose the local archive/index directory. The
-adapter roots can be overridden with `CODEX_HOME`, `CLAUDE_HOME`,
+Set `SAVEYOURSESSION_ROOT` to choose the local index/metadata directory. It
+never contains a raw transcript archive: raw files remain in their harness's
+native directory and are uploaded directly from there. The adapter roots can
+be overridden with `CODEX_HOME`, `CLAUDE_HOME`,
 `GROK_BUILD_HOME`, and `DSH_HOME`.
 
 For Hugging Face sync, set `HF_BUCKET_URI=hf://buckets/Dearcat/agent-session`
@@ -55,5 +57,11 @@ artifacts or alter their native layout. Grok's documented session directory is
 `$GROK_HOME/sessions/` (default `~/.grok/sessions/`).
 
 The Claude Code plugin also runs a best-effort SessionEnd hook that executes
-the Claude-only sync. A failed hook leaves the local archive intact and is
-retried by the scheduled `sync` command.
+the Claude-only sync. A failed upload leaves the native session untouched and
+is retried by the scheduled `sync` command.
+
+## Recap
+
+For session review and cleanup recommendations, use the separate
+`session-recap` skill. This skill only manages native sessions and their
+mechanical state; it does not perform semantic recap.
