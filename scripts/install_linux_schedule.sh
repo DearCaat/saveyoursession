@@ -79,6 +79,7 @@ After=network-online.target
 [Service]
 Type=oneshot
 EnvironmentFile=-%h/.config/saveyoursession/sync.env
+Environment="PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
 ExecStart=/bin/sh -c 'exec "${SAVEYOURSESSION_PYTHON:-python3}" "${SAVEYOURSESSION_PLUGIN_ROOT:?SAVEYOURSESSION_PLUGIN_ROOT is required}/scripts/manager.py" sync'
 StandardOutput=append:%h/.local/state/saveyoursession/sync.log
 StandardError=append:%h/.local/state/saveyoursession/sync.log
