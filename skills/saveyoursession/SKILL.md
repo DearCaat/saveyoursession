@@ -21,6 +21,13 @@ Code plugin root; use the first one that is defined.
   `--harness <name>` and `--session-id <id>` for one harness/session.
 - Use `python "${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/manager.py" search <query>`
   to search the shared index and any native content still present locally.
+- To upload a session's markdown summary with its transcript, add
+  `--summary <file.md> --session-id <id>` to `sync`; it is stored beside the
+  transcript as `SUMMARY.md`. Add `--locator-hash` if the ID exists in several places.
+- To download a remote session without any local index record, run
+  `python "${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/manager.py" fetch <harness> <id> --dest <dir>`.
+  The caller picks `<dir>`; existing files are never overwritten. Add
+  `--locator-hash` when several remote sources share the ID.
 - Before restoring, run
   `python "${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/manager.py" status <harness> <id>`;
   restore only into the matching harness unless the user explicitly supplies a

@@ -13,6 +13,8 @@ CONTROL = ROOT / "control.json"
 INDEX_SCHEMA_VERSION = 2
 CONTROL_SCHEMA_VERSION = 1
 REMOTE_CONTROL_PATH = "control/exclusions.v1.json"
+# Fixed object name for a session summary stored beside its transcript.
+SUMMARY_NAME = "SUMMARY.md"
 
 HARNESS_ROOTS = {
     "codex": [Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")) / "sessions"],
@@ -414,7 +416,14 @@ def _write_metadata(source_id, harness, session_id, locator_hash, remote_prefix,
     # prove that a previously uploaded object still exists remotely.
     return metadata_path, _upload_hf(metadata_path, remote_prefix)
 
-def sync(harness=None, session_id=None, locator_hash=None):
+def sync(harness=None, session_id=None, locator_hash=None, summary=None):
+    # A summary belongs to one session, so it is only accepted with an explicit
+    # session ID and must name an existing file.  Checked before any upload.
+    if summary is not None:
+        if not session_id:
+            raise ValueError("--summary needs --session-id: a summary belongs to one session")
+        if not Path(summary).is_file():
+            raise ValueError(f"summary file not found: {summary}")
     db = _load()
     source = _source_identity()
     source_id = source["source_id"]
@@ -429,9 +438,12 @@ def sync(harness=None, session_id=None, locator_hash=None):
             # paths merely because a harness reused/collided a session ID.
             key = (item["harness"], item["session_id"], item["locator_hash"])
             grouped.setdefault(key, []).append(item)
+    if summary is not None and len(grouped) != 1:
+        raise ValueError(f"--summary needs exactly one matching session, found {len(grouped)}; add --locator-hash")
 
     uploaded = skipped = pending = excluded = 0
     errors = []
+    summary_outcome = None
     for (item_harness, item_session_id, locator_hash), items in grouped.items():
         session_key = _session_key(source_id, item_harness, item_session_id, locator_hash)
         remote_prefix = _remote_session_prefix(source_id, item_harness, item_session_id, locator_hash)
@@ -443,6 +455,8 @@ def sync(harness=None, session_id=None, locator_hash=None):
 
         if _is_excluded(session_key, control):
             excluded += len(items)
+            if summary is not None:
+                errors.append({"path": str(summary), "reason": "session is excluded by policy; summary not uploaded"})
             db["sessions"][session_key] = {
                 **previous,
                 "schema_version": INDEX_SCHEMA_VERSION,
@@ -494,6 +508,22 @@ def sync(harness=None, session_id=None, locator_hash=None):
         )
         if not metadata_upload.get("uploaded") and not metadata_upload.get("skipped"):
             errors.append({"path": str(metadata_path), "reason": metadata_upload.get("reason", "metadata upload failed")})
+        # A summary is kept with the session only when one is supplied; a later
+        # sync without --summary leaves the uploaded summary in place.
+        summary_record = previous.get("summary")
+        if summary is not None:
+            summary_upload = _upload_summary(summary, remote_prefix)
+            summary_bytes = Path(summary).read_bytes()
+            summary_record = {
+                "remote_path": summary_upload.get("remote_path"),
+                "content_hash": hashlib.sha256(summary_bytes).hexdigest(),
+                "size": len(summary_bytes),
+                "synced_at": datetime.now(timezone.utc).isoformat(),
+                "upload": summary_upload,
+            }
+            summary_outcome = summary_record
+            if not summary_upload.get("uploaded") and not summary_upload.get("skipped"):
+                errors.append({"path": str(summary), "reason": summary_upload.get("reason", "summary upload failed")})
         entry = {
             "schema_version": INDEX_SCHEMA_VERSION,
             "session_key": session_key,
@@ -511,6 +541,7 @@ def sync(harness=None, session_id=None, locator_hash=None):
             "metadata_path": str(metadata_path),
             "metadata_remote_path": _remote_object_path(remote_prefix, "metadata.json"),
             "metadata": metadata,
+            "summary": summary_record,
             "created_at": metadata["created_at"],
             "updated_at": metadata["updated_at"],
             "synced_at": datetime.now(timezone.utc).isoformat(),
@@ -526,6 +557,7 @@ def sync(harness=None, session_id=None, locator_hash=None):
         "legacy_sessions": len(db.get("legacy_sessions", {})),
         "source_id": source_id,
         "metadata": str(METADATA),
+        "summary": summary_outcome,
         "errors": errors,
     }
 
@@ -836,6 +868,94 @@ def _staged_remote_file(staging, remote_path):
     matches = list(staging.rglob(name))
     return matches[0] if len(matches) == 1 else None
 
+def _upload_summary(summary_path, remote_prefix):
+    """Upload a markdown summary beside its session under the fixed name SUMMARY.md."""
+    source = Path(summary_path)
+    with tempfile.TemporaryDirectory(prefix="saveyoursession-summary-") as tmp:
+        staged = Path(tmp) / SUMMARY_NAME
+        shutil.copy2(source, staged)
+        result = _upload_hf(staged, remote_prefix)
+    result.setdefault("remote_path", _remote_object_path(remote_prefix, SUMMARY_NAME))
+    return result
+
+def _remote_listing(prefix):
+    """Return every object path under *prefix* in the configured HF bucket."""
+    bucket, _repo, token = _hf_settings()
+    if not token:
+        raise RuntimeError("cannot fetch: HF_TOKEN is not configured")
+    if not bucket:
+        raise RuntimeError("cannot fetch: HF_BUCKET_URI is not configured")
+    env = os.environ.copy(); env["HF_TOKEN"] = token
+    try:
+        result = subprocess.run(
+            ["hf", "buckets", "list", f"{bucket}/{prefix}", "--recursive", "--format", "agent"],
+            env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, timeout=300, check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RuntimeError(f"cannot list HF Storage Bucket: {exc}") from exc
+    if result.returncode:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise RuntimeError(f"cannot list HF Storage Bucket: {detail}")
+    # Agent-format rows end with the object path; keep only rows that have one.
+    return [row.split()[-1] for row in result.stdout.splitlines() if row.split() and "/" in row.split()[-1]]
+
+def _remote_session_prefixes(harness, session_id, locator_hash=None):
+    """Map each remote session prefix for this harness/session ID to its object paths."""
+    wanted = quote(str(session_id), safe="-_.")
+    found = {}
+    for path in _remote_listing("v1"):
+        parts = path.split("/")
+        # v1 / source_id / harness / session_id / locator_hash / object
+        if len(parts) < 6 or parts[0] != "v1":
+            continue
+        _version, _source, remote_harness, remote_session, remote_locator = parts[:5]
+        if remote_harness != harness or remote_session != wanted:
+            continue
+        if locator_hash and remote_locator != locator_hash:
+            continue
+        found.setdefault("/".join(parts[:5]), []).append(path)
+    return found
+
+def fetch(harness, session_id, destination, locator_hash=None):
+    """Download one remote session into *destination*; needs no local index record.
+
+    The destination is chosen by the caller.  Existing files are never
+    overwritten.  Several remote sources with the same session ID are refused
+    until --locator-hash picks one.
+    """
+    if not destination:
+        raise ValueError("fetch needs a destination directory")
+    matches = _remote_session_prefixes(harness, session_id, locator_hash)
+    if not matches:
+        raise ValueError("no remote session found for this harness and session ID")
+    if len(matches) > 1:
+        raise ValueError("session ID matches several remote sources; add --locator-hash: " + ", ".join(sorted(matches)))
+    remote_prefix, remote_paths = next(iter(matches.items()))
+    target_dir = Path(destination)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    fetched, skipped = [], []
+    with tempfile.TemporaryDirectory(prefix="saveyoursession-fetch-") as tmp:
+        staging = Path(tmp)
+        _download_session(remote_prefix, staging)
+        for remote_path in sorted(remote_paths):
+            source = _staged_remote_file(staging, remote_path)
+            if source is None:
+                raise RuntimeError(f"remote object missing after download: {remote_path}")
+            target = target_dir / Path(remote_path).name
+            if target.exists():
+                skipped.append(str(target))
+                continue
+            shutil.copy2(source, target)
+            fetched.append(str(target))
+    return {
+        "fetched": fetched,
+        "skipped_existing": skipped,
+        "remote_prefix": remote_prefix,
+        "harness": harness,
+        "session_id": session_id,
+    }
+
 def _find_session(harness, session_id):
     """Resolve old CLI arguments only when exactly one v2 record matches."""
     matches = [
@@ -906,7 +1026,8 @@ def restore(harness, session_id, target_root=None, session_key=None):
 TOOLS = {
  "list_sessions": ({"type":"object", "properties":{"harness":{"type":"string"},"limit":{"type":"integer"}}}, "List native sessions across harnesses."),
  "sync_all": ({"type":"object"}, "Scan and sync native sessions from all configured harnesses."),
- "sync_session": ({"type":"object", "properties":{"harness":{"type":"string"},"session_id":{"type":"string"},"locator_hash":{"type":"string"}},"required":["harness","session_id"]}, "Sync one native session; locator_hash disambiguates duplicate native IDs."),
+ "sync_session": ({"type":"object", "properties":{"harness":{"type":"string"},"session_id":{"type":"string"},"locator_hash":{"type":"string"},"summary":{"type":"string"}},"required":["harness","session_id"]}, "Sync one native session; locator_hash disambiguates duplicate native IDs; summary uploads a markdown file as SUMMARY.md beside the session."),
+ "fetch_session": ({"type":"object", "properties":{"harness":{"type":"string"},"session_id":{"type":"string"},"destination":{"type":"string"},"locator_hash":{"type":"string"}},"required":["harness","session_id","destination"]}, "Download one remote session from the HF bucket into a destination directory; no local index record is needed."),
  "search_sessions": ({"type":"object", "properties":{"query":{"type":"string"}},"required":["query"]}, "Search the cross-harness session index and local content."),
  "session_status": ({"type":"object", "properties":{"harness":{"type":"string"},"session_id":{"type":"string"}},"required":["harness","session_id"]}, "Inspect sync status for one session."),
  "restore_session": ({"type":"object", "properties":{"harness":{"type":"string"},"session_id":{"type":"string"},"session_key":{"type":"string"},"target_root":{"type":"string"}},"required":["harness","session_id"]}, "Restore a remote native session into its matching harness directory; session_key disambiguates duplicate IDs."),
@@ -915,7 +1036,8 @@ TOOLS = {
 def call(name, a):
     if name == "list_sessions": return discover(a.get("harness"))[:a.get("limit", 50)]
     if name == "sync_all": return sync()
-    if name == "sync_session": return sync(a["harness"], a["session_id"], a.get("locator_hash"))
+    if name == "sync_session": return sync(a["harness"], a["session_id"], a.get("locator_hash"), a.get("summary"))
+    if name == "fetch_session": return fetch(a["harness"], a["session_id"], a["destination"], a.get("locator_hash"))
     if name == "search_sessions": return search(a["query"])
     if name == "session_status": return session_status(a["harness"], a["session_id"])
     if name == "restore_session": return restore(a["harness"], a["session_id"], a.get("target_root"), a.get("session_key"))
